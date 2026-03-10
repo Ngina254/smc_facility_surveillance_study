@@ -1,0 +1,935 @@
+---
+title: "Surveillance Data Analysis"
+author: "Caroline Ngina"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning = FALSE)
+```
+
+```{r}
+pacman::p_load(readxl,lubridate,tidyverse,gt,janitor,tidytable, skimr,flextable,officer,arsenal,dplyr,tidyr, gtsummary,ggplot2, writexl)
+```
+
+```{r}
+#Creating work directory
+setwd("C:/Users/cnf23/Documents/SMC 2025/Data analysis/Clean data")
+```
+
+```{r}
+surveillance_data <- read_excel("all_surveillance.xlsx")
+```
+
+```{r}
+#unique(surveillance_data$net_avail)
+```
+
+```{r}
+#surveillance_data <- surveillance_data %>% 
+  #mutate(
+   # age_group=case_when(child_age>=3 & child_age<12 ~"3-11",
+   #   child_age>=12 &child_age<60 ~"12-59",
+   #   child_age>=60 ~"above 59",
+    #  TRUE~ NA_character_
+   # )
+ # )
+```
+
+```{r}
+surveillance_data <- surveillance_data %>% 
+  mutate(
+    age_group=case_when(
+      child_age>=3 & child_age<6 ~"3-5",
+      child_age>=6 &child_age<12 ~"6-11",
+      child_age>=12 &child_age<60 ~"12-59",
+      child_age>=60 ~"above 59",
+      TRUE~ NA_character_
+    )
+  )
+```
+
+```{r}
+#surveillance_data <- surveillance_data %>%
+#  mutate(
+ #   age_group = case_when(
+ #     child_age >= 3  & child_age <= 11  ~ "3-11 mo",
+ #     child_age >= 12 & child_age <= 23  ~ "12-23 mo",
+  #    child_age >= 24 & child_age <= 35  ~ "24-35 mo",
+  #    child_age >= 36 & child_age <= 47  ~ "36-47 mo",
+ #     child_age >= 48                   ~ "48+ mo",
+ #     TRUE ~ NA_character_
+  #  ),
+   # age_group = factor(age_group, levels = c("3-11 mo", "12-23 mo", "24-35 mo", "36-47 mo", "48+ mo"))
+ # )
+```
+
+
+```{r}
+#Renaming Variables for table 1
+surveillance_data <- surveillance_data %>% 
+  rename(`Age(months)`=age_group,
+         Gender=child_gender,
+         `Has bednet for sleeping space`=net_avail,
+         `Slept under a bednet`=slept_undernet,
+         `Sleeping space location`=sleep_inside_outside,
+         `Know a CHP in your village`=know_chp,
+         `Ever heard of SMC`=heard_smc,
+         `Received any SMC cycle`=receive_smc,
+         `Distance to facility(minutes)`=distance_facility,
+         `Respondent's gender`=respondent_gender,
+         `Respondent's Age(years)`=respondent_age
+         
+         )
+```
+
+```{r}
+#table(surveillance_data$`Respondent's gender`)
+```
+
+```{r}
+#Labelling values
+library(dplyr)
+
+surveillance_data <- surveillance_data %>%
+  mutate(
+    dplyr::across(
+      where(~ all(na.omit(.) %in% c(0, 1))),
+      ~ factor(.,
+               levels = c(0, 1),
+               labels = c("No", "Yes"))
+    )
+  )
+surveillance_data <- surveillance_data %>% 
+  mutate(`Ever heard of SMC`=recode(as.character(`Ever heard of SMC`), "1"="Yes", "0"="No", "999"="Don't know"))
+
+```
+
+```{r}
+#table(surveillance_data$`Respondent's gender`)
+#unique(surveillance_data$`Respondent's gender`)
+```
+
+```{r}
+#Changing values within a variable
+         surveillance_data <- surveillance_data %>%
+           mutate(`Sleeping space location`=recode(`Sleeping space location`, "Inside"="Only indoors", "Outside"="Only outdoors", "Both"="Partly both"
+))
+
+```
+
+```{r}
+#Ordering values for table1
+         surveillance_data$`Has bednet for sleeping space` <- factor(
+           surveillance_data$`Has bednet for sleeping space`,
+           levels = c("Yes", "No"))
+
+         surveillance_data$`Slept under a bednet` <- factor(
+           surveillance_data$`Slept under a bednet`,
+           levels = c("Yes", "No"))
+
+                  surveillance_data$`Received any SMC cycle` <- factor(
+           surveillance_data$`Received any SMC cycle`,
+           levels = c("Yes", "No"))
+                  
+                    surveillance_data$`Age(months)` <- factor(
+           surveillance_data$`Age(months)`,
+           levels = c("3-5", "6-11", "12-59", "above 59"))
+     
+                  surveillance_data$`Ever heard of SMC` <- factor(
+           surveillance_data$`Ever heard of SMC`,
+           levels = c("Yes", "No", "Don't know"))
+
+                 surveillance_data$`Know a CHP in your village` <- factor(
+           surveillance_data$`Know a CHP in your village`,
+           levels = c("Yes", "No"))
+                       
+                
+```
+
+```{r}
+#table(surveillance_data$`Respondent's gender`)
+
+```
+
+## Summary table; Participant characteristics
+
+```{r results='asis'}
+tab1 <- tableby(facility_name ~  `Age(months)` + Gender +`Sleeping space location` + `Has bednet for sleeping space` +
+                  `Slept under a bednet` + `Received any SMC cycle`+ `Know a CHP in your village`, data=surveillance_data)
+summary(tab1, test=FALSE, pvalues = FALSE)
+
+```
+
+```{r}
+surveillance_data <- read_excel("all_surveillance.xlsx")
+
+```
+
+```{r}
+#Graph1:Net ownership
+net_pivot <- surveillance_data %>% group_by(facility_name) %>% 
+  summarise(
+    pid_new=n(pid),
+    net_ownership=sum(net_avail),
+    net_use=sum(slept_undernet),
+    net_ownership_p=round(sum(net_avail)/n(pid)*100,1),
+    net_use_p=round(sum(slept_undernet)/sum(net_avail)*100,1),
+    .groups = "drop"
+  )
+
+```
+
+```{r}
+#unique(surveillance_data$net_avail)
+
+```
+
+## Net ownership and use
+
+### Table for net ownership and use
+
+```{r}
+gt(net_pivot)
+```
+
+### Net ownership and use graph
+
+```{r eval=FALSE}
+net_pivot_long <- net_pivot %>% select(facility_name,net_ownership_p,net_use_p) %>% 
+  pivot_longer(cols = c("net_ownership_p","net_use_p"),names_to = "facility",values_to = "proportion")
+ggplot(net_pivot_long,aes(x=facility_name,y=proportion,fill=facility)) + 
+  geom_col(position = "dodge",color="white") + labs(x="Facility",y="Bed net ownership and Use (%)", title="") + 
+  geom_text(aes(label = proportion),position = position_dodge(width = 0.8),vjust=-0.3,size=3.0, fontface = "bold") +
+  scale_y_continuous(limits = c(0,110), #Define the limit of the y axis
+                              breaks=seq(0,100,25),expand = c(0,0))+
+  scale_fill_manual(values = c("net_ownership_p"="#00BA38","net_use_p"="#619CFF"),
+                    labels=c("net_ownership_p"="Own net","net_use_p"="Used the net"),name=NULL) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 12)) +
+  theme_bw()+
+  theme(legend.position = "right",
+                 #panel.background = element_rect(fill = "white",colour = NA),
+                 panel.border = element_blank(),
+                 axis.line = element_line(colour = "black"),
+                 legend.text = element_text(size=10,colour = "black"),
+                 legend.title =element_text(size=12,colour = "black",face="bold"),
+                 axis.title.y = element_text(size = 12, color = "black", face="plain"),
+                 axis.text.y = element_text(size = 10, color = "black"),
+                 axis.title.x = element_text(size = 12, color = "black"),
+                 axis.text.x = element_text(size = 10, color = "black", angle = 0,hjust = 0.5,vjust = 0.5, lineheight = 0.9)
+                 
+           )
+#net_pivot_long
+ggsave("Net_ownership_use.png",
+  width = 11,
+  height = 6,
+  dpi = 300)
+
+```
+
+
+```{r}
+#Grouping
+grp_net <- net_pivot %>% select(facility_name, net_ownership_p,net_use_p) %>% 
+ pivot_longer(cols = c("net_ownership_p","net_use_p"),names_to = "facility",values_to = "proportion") %>% 
+  mutate(facility= recode(facility, net_ownership_p= "Own bed net",net_use_p="Used bed net"  ))
+
+ggplot(grp_net,aes(x=facility_name,y=proportion,fill=facility)) + 
+  geom_col(color="white") + labs(x="Facility",y="Bed net ownership and Use (%)", title="") + 
+  geom_text(aes(label = proportion),vjust=-0.3,size=3.0, fontface = "bold") +
+  facet_wrap(~facility, ncol=NULL, scales="free_y") +
+  scale_y_continuous(limits = c(0,110), #Define the limit of the y axis
+                              breaks=seq(0,100,25),expand = c(0,0))+
+  scale_fill_manual(values = c("Own bed net"="#00BA38","Used bed net"="#619CFF")) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 12)) +
+  theme_bw()+
+  theme(legend.position = "none",
+                 #panel.background = element_rect(fill = "white",colour = NA),
+                 panel.border = element_blank(),
+                 axis.line = element_line(colour = "black"),
+                 legend.text = element_text(size=10,colour = "black"),
+                 legend.title =element_text(size=12,colour = "black",face="bold"),
+                 axis.title.y = element_text(size = 12, color = "black", face="plain"),
+                 axis.text.y = element_text(size = 10, color = "black"),
+                 axis.title.x = element_text(size = 12, color = "black"),
+                 axis.text.x = element_text(size = 10, color = "black", angle = 45,hjust = 1,vjust = 1, lineheight = 0.9)
+  )
+
+ggsave("Net_ownership_use1.png",  width = 11,  height = 6,  dpi = 300)
+
+
+```
+
+
+
+
+```{r}
+#unique(surveillance_data$slept_undernet)
+
+```
+
+```{r eval=FALSE}
+#unique(surveillance_data$`Ever heard of SMC`)
+#table(surveillance_data$`Ever heard of SMC`)
+```
+
+```{r eval=FALSE}
+library(gtsummary)
+library(dplyr)
+tbl_summary(surveillance_data,
+            include=c(`Age(months)`,Gender,`Sleeping space location`, `Has bednet for sleeping space` ,`Slept under a bednet`,`Received any SMC cycle` ),
+            by="facility_name",
+            #sort = all_categorical() ~ "frequency"
+            ) %>% 
+  bold_labels()%>% 
+  modify_header(label="**Variable**") %>% 
+  modify_caption(paste0("**Table 1. Child characteristics**")) %>% 
+  #add_overall() %>% 
+  add_n()
+```
+
+
+
+```{r  }
+reasons_data <- read_excel("REASONS.xlsx",sheet=2)
+```
+
+```{r eval=TRUE}
+#unique(reasons_data$rsn_missed_smc_oth)
+```
+
+
+```{r}
+#unique(reasons_data$rsn_missed_smc_oth)
+#rsn_missed_smc12","rsn_missed_smc13",
+  #"rsn_missed_smc12" = "Caregiver declined",
+  #"rsn_missed_smc13" = "Child was under age",
+ #"rsn_missed_smc14" = "New resident",
+ #"rsn_missed_smc15" = "Child on anti-TB drugs"
+
+```
+
+```{r eval=TRUE }
+reasons_choices1 <- reasons_data %>% select(c("KEY","facility_name","rsn_missed_smc1","rsn_missed_smc2","rsn_missed_smc3","rsn_missed_smc4","rsn_missed_smc5","rsn_missed_smc6","rsn_missed_smc7","rsn_missed_smc8","rsn_missed_smc9","rsn_missed_smc10","rsn_missed_smc11","rsn_missed_smc12", "rsn_missed_smc13","rsn_missed_smc14", "rsn_missed_smc15", "rsn_missed_smc98" ))
+
+#reasons_choices1
+```
+
+```{r eval=TRUE }
+
+reasons_choices <- c("rsn_missed_smc1","rsn_missed_smc2","rsn_missed_smc3","rsn_missed_smc4","rsn_missed_smc5","rsn_missed_smc6","rsn_missed_smc7","rsn_missed_smc8","rsn_missed_smc9","rsn_missed_smc10","rsn_missed_smc11","rsn_missed_smc12", "rsn_missed_smc13","rsn_missed_smc14", "rsn_missed_smc15","rsn_missed_smc98")
+```
+
+```{r eval=TRUE}
+reason_labels <- c(
+  rsn_missed_smc1  = "Did not know about SMC",
+  rsn_missed_smc2  = "CHP did not come",
+  rsn_missed_smc3  = "Household head was away from home",
+  rsn_missed_smc4  = "Caretaker was away from home",
+  rsn_missed_smc5  = "Child was away from home",
+  rsn_missed_smc6  = "Could not find fixed-point venue or too far",
+  rsn_missed_smc7  = "Drugs were not available",
+  rsn_missed_smc8  = "Child had side effects from previous cycle",
+  rsn_missed_smc9  = "Child was ill on the day of visit",
+  rsn_missed_smc10 = "Unsure about benefits of the drugs",
+  rsn_missed_smc11 = "Unsure about safety of the drugs",
+  rsn_missed_smc12 = "Caregiver declined",
+  rsn_missed_smc13 = "Child was under age",
+  rsn_missed_smc14 = "New resident",
+  rsn_missed_smc15 = "Child on anti-TB drugs",
+  rsn_missed_smc98 = "Other reason"
+)
+```
+
+```{r eval=TRUE}
+missed <- reasons_choices1 %>% pivot_longer(cols=all_of(names(reason_labels)), names_to = "Reason", values_to = "reason_value") %>% 
+  mutate(Reason = recode(Reason, !!!reason_labels), Reason = factor(Reason, levels = unname(reason_labels)))  # enforce order
+
+
+missed_summary <- missed %>%
+  group_by(facility_name, Reason) %>%
+  summarise(total = sum(reason_value, na.rm = TRUE), .groups = "drop")
+
+  missed_wider <- missed_summary %>%
+  pivot_wider(names_from = facility_name,
+              values_from = total,
+              values_fill = 0) %>%
+  mutate(Grand_Total = rowSums(dplyr::across(where(is.numeric))))
+
+  #missed_wider
+
+```
+
+## Reasons for missing SMC drug
+
+### Reasons for missing SMC by Facility
+
+```{r eval=TRUE}
+missed_wider %>%
+  gt() %>%
+  tab_header(title = md("**Reasons for Missing SMC**")) %>%
+  tab_options(table.font.size = 14, data_row.padding = px(6)) 
+
+```
+
+### Reasons for missing SMC (percentage)
+
+
+```{r eval=TRUE}
+v1 <- missed_wider %>% select(c("Reason", "Grand_Total")) %>% 
+  filter(Reason!="Drugs were not available" ) %>% 
+  mutate("Percent(%)" = round(Grand_Total/sum(Grand_Total)*100,1),
+         category= case_when(
+           Reason %in% c("Did not know about SMC") ~ "Awareness",
+           Reason %in% c("CHP did not come", "Could not find fixed-point venue or too far") ~ "Access",
+           Reason %in% c("Child had side effects from previous cycle", "Unsure about benefits of the drugs", "Unsure about safety of the drugs", "Caregiver declined") ~ "Choice",
+           Reason %in% c("Child was ill on the day of visit", "Child was under age", "New resident", "Child on anti-TB drugs"  ) ~ "Eligibility",
+           Reason %in% c("Caretaker was away from home", "Child was away from home", "Household head was away from home") ~ "Travel",
+           Reason %in% c("Other reason") ~ "Other reason"
+         )
+          )  
+v1 %>% #arrange(category) %>% 
+  gt(rowname_col = "Reason", groupname_col = "category") %>% cols_label(Grand_Total= "Count(n)") %>%  tab_style(cell_text(weight = "bold"), locations = cells_column_labels(everything())) %>% 
+  cols_align(align = "left",columns = Reason)
+```
+
+
+# Adherence dataset 
+```{r eval=TRUE}
+mainform_data <- read_excel("adherence_final_09022026.xlsx")
+```
+
+```{r eval=TRUE}
+mainform_cols <- c("dateofvisit","pid","receive_smc","date_lastcycle")
+mainform_subset <- mainform_data %>% select(all_of(mainform_cols)) %>% filter(receive_smc==1)
+  
+```
+
+```{r eval=TRUE}
+#mainform_subset <- mainform_subset %>% mutate(
+# date_lastcycle=if_else(pid=="KP-SEA-1006", as.Date("2025-07-21"),date_lastcycle)
+ # )
+```
+
+```{r eval=TRUE}
+mainform_subset <- mainform_subset %>% mutate(
+  num_days= as.numeric(difftime(dateofvisit,date_lastcycle,units = "days"))
+  ) 
+#%>% filter(num_days>=0)
+
+```
+
+```{r eval=TRUE}
+date_query <- mainform_subset %>% filter(num_days<0)
+
+```
+
+```{r eval=TRUE}
+pivot_days <- mainform_subset %>% group_by(num_days) %>%
+  summarise(num_children=n_distinct(pid), .groups= "drop")
+```
+
+## How long after SMC do children come back
+
+### Number of Days After SMC
+
+```{r eval=TRUE}
+ggplot(pivot_days, aes(x=num_days, y=num_children))+ 
+  theme_bw() +
+  geom_col(fill="#619CFF")+
+             labs(x="Days since last SMC", y="Number of children", title="")+#blank fill removes the legend title
+           scale_y_continuous(limits = c(0,20), #Define the limit of the y axis
+                              breaks=seq(0,30,2),expand = c(0,0))+
+  scale_x_continuous(limits = c(0,150), #Define the limit of the y axis
+                              breaks=seq(0,150,7),expand = c(0,0))+
+           theme(legend.position = "right",
+                 panel.border = element_blank(),
+                 axis.line = element_line(colour = "black"),
+                 legend.text = element_text(size=10,colour = "black"),
+                 legend.title =element_text(size=12,colour = "black",face="bold"),
+                 axis.title.y = element_text(size = 12, color = "black"),
+                 axis.text.y = element_text(size = 10, color = "black"),
+                 axis.title.x = element_text(size = 12, color = "black"),
+                 axis.text.x = element_text(size = 10, color = "black", angle = 0,margin =margin(t=2,r=8,b=2,l=4,"pt"))
+                 
+           )
+
+
+
+```
+
+```{r eval=FALSE}
+#pivot_days <- pivot_days %>% mutate(
+ # Days = case_when(
+ #   num_days >=0 & num_days <=14 ~ "0-14",
+ #   num_days >=15 & num_days <=29 ~ "15-29",
+  #  num_days >=30 & num_days <=44 ~ "30-44",
+  #  num_days >=45 & num_days <=59 ~ "45-59",
+  #  num_days >=60 & num_days <=74 ~ "60-74",
+  #  num_days >=75 & num_days <=89 ~ "75-89",
+   # num_days >=90  ~ "90+",
+#  )
+#)
+```
+
+```{r}
+pivot_days <- pivot_days %>%
+  mutate(
+    Days = case_when(
+      num_days >= 0   & num_days <= 7   ~ "0-7",
+      num_days >= 8   & num_days <= 15  ~ "8-15",
+      num_days >= 16  & num_days <= 23  ~ "16-23",
+      num_days >= 24  & num_days <= 31  ~ "24-31",
+      num_days >= 32  & num_days <= 39  ~ "32-39",
+      num_days >= 40  & num_days <= 47  ~ "40-47",
+      num_days >= 48  & num_days <= 55  ~ "48-55",
+      num_days >= 56  & num_days <= 63  ~ "56-63",
+      num_days >= 64  & num_days <= 71  ~ "64-71",
+      num_days >= 72  & num_days <= 79  ~ "72-79",
+      num_days >= 80  & num_days <= 87  ~ "80-87",
+      num_days >= 88  ~ "88+",
+      TRUE ~ NA_character_
+    )
+  )
+
+```
+
+
+```{r}
+days_grouped <- pivot_days %>%  group_by(Days) %>% summarise(Children=sum(num_children)) %>% 
+  mutate(
+    Days = factor(
+      Days,
+      levels = c(
+        "0-7","8-15","16-23","24-31","32-39","40-47","48-55",
+        "56-63","64-71","72-79","80-87","88+"
+      ),
+      ordered = TRUE
+    )
+  )
+
+```
+
+### Number of Days After SMC (grouped)
+
+```{r}
+ggplot(days_grouped, aes(x=Days, y=Children))+ 
+  theme_bw() +
+  geom_col(fill="#619CFF")+
+    geom_text(aes(label = Children),vjust=-0.5,size=3.0, fontface = "bold") +
+
+             labs(x="Days since last SMC", y="Number of children", title="")+#blank fill removes the legend title
+           scale_y_continuous(limits = c(0,120), #Define the limit of the y axis
+                              breaks=seq(0,120,20),expand = c(0,0))+
+           theme(legend.position = "right",
+                 panel.border = element_blank(),
+                 panel.grid = element_blank(),
+                 axis.line = element_line(colour = "black"),
+                 legend.text = element_text(size=10,colour = "black"),
+                 legend.title =element_text(size=12,colour = "black",face="bold"),
+                 axis.title.y = element_text(size = 12, color = "black"),
+                 axis.text.y = element_text(size = 10, color = "black"),
+                 axis.title.x = element_text(size = 12, color = "black"),
+                 axis.text.x = element_text(size = 10, color = "black", angle = 0,margin =margin(t=2,r=8,b=2,l=4,"pt"))
+                 
+           )
+
+```
+
+```{r}
+adherence_data <- read_excel("adherence_final_09022026.xlsx")
+```
+
+
+```{r eval=TRUE}
+#table(surveillance_data$give_remain_tablets)
+adherence <- xtabs(~give_remain_tablets, adherence_data)         
+ #adherence        
+  adherence <- as.data.frame(adherence) 
+  
+  adherence_p <- adherence %>% 
+    filter(!is.na(Freq)) %>% 
+    mutate(percent=round(Freq/sum(Freq)*100,2),
+           give_remain_tablets=recode(give_remain_tablets, "1"="Yes, all", "2"="Yes, some", "3"="No, none"))
+  #adherence_p
+  
+  adherence_p$give_remain_tablets <- factor(
+    adherence_p$give_remain_tablets,
+    levels = c("Yes, all", "Yes, some", "No, none"))        
+
+```
+
+## SMC Drug Adherence
+
+### Table
+
+```{r}
+gt(adherence_p)
+```
+
+## SMC drug adherence chart
+
+```{r}
+ggplot(adherence_p, aes(x=give_remain_tablets, y=percent, fill=give_remain_tablets))+
+  
+    geom_bar(stat = "identity", width = 1, color = "white")+
+    geom_text( aes(label = paste0(percent, "%")), vjust = -0.5, size = 3.0, fontface = "bold" )+
+
+    theme_bw()+
+  
+    labs(x="Took remaining doses", y="Children (%)", fill="", title="")+#blank fill removes the legend title
+  
+    scale_y_continuous(limits = c(0,100), #Define the limit of the y axis
+                       breaks=seq(0,100,20),expand = c(0,0))+
+
+    theme(legend.position = "right",
+          panel.border = element_blank(),
+          axis.line = element_line(colour = "black"),
+          legend.text = element_text(size=10,colour = "black"),
+          legend.title =element_text(size=12,colour = "black",face="bold"),
+          axis.title.y = element_text(size = 12, color = "black"),
+          axis.text.y = element_text(size = 10, color = "black"),
+          axis.title.x = element_text(size = 12, color = "black"),
+          axis.text.x = element_text(size = 10, color = "black", angle = 0,margin =margin(t=2,r=8,b=2,l=4,"pt"))
+    )
+```
+
+## SMC coverage by month
+
+```{r}
+surveillance_data <- read_excel("all_surveillance.xlsx")
+```
+
+```{r}
+#table(surveillance_data$receive_smc)
+###Generating visit month
+surveillance_data <- surveillance_data %>%
+  mutate(
+    dateofvisit1 = ymd(dateofvisit),  # make sure it's a proper date
+    month_visit = month(dateofvisit, label = TRUE, abbr = FALSE),
+    SMC_cycle = case_when(
+      month(dateofvisit) == 6  ~ "Cycle 1",
+      month(dateofvisit) == 7  ~ "Cycle 2",
+      month(dateofvisit) == 8  ~ "Cycle 3",
+      month(dateofvisit) == 9  ~ "Cycle 4",
+      month(dateofvisit) == 10 ~ "Cycle 5",
+      TRUE ~ "Outside SMC period"
+    )
+  )
+```
+
+```{r }
+#to find out if all are within the smc cycle
+#surveillance_data %>%
+  #summarise(
+  #  total_records = n(),
+  #  missing_SMC = sum(is.na(SMC_cycle) | SMC_cycle == "Outside SMC period"),
+   # with_SMC = sum(!is.na(SMC_cycle) & SMC_cycle != "Outside SMC period")
+ # )
+
+
+```
+
+```{r}
+#if there are missing smc cycle look them up
+#missing_SMC <- surveillance_data %>%
+#  filter(is.na(SMC_cycle) | SMC_cycle == "Outside SMC period") %>%
+ # select(facility_name, id_enter_type, id_code_enter, id_code_scan)
+
+#missing_SMC
+
+```
+
+```{r}
+surveillance_data <- surveillance_data %>%
+  mutate(
+    month_visit = month(dateofvisit, label = TRUE, abbr = FALSE),
+
+    SMC_status = case_when(
+      # June (expected 1 dose) ---
+      month_visit == "June" & smc_cycles >= 1 ~ "Received all",
+      month_visit == "June" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      # July (expected 2 doses) ---
+      month_visit == "July" & smc_cycles >= 2 ~ "Received all",
+      month_visit == "July" & smc_cycles == 1 ~ "Received some",
+      month_visit == "July" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      #  August (expected 3 doses) ---
+      month_visit == "August" & smc_cycles >= 3 ~ "Received all",
+      month_visit == "August" & smc_cycles %in% 1:2 ~ "Received some",
+      month_visit == "August" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      # September (expected 4 doses) ---
+      month_visit == "September" & smc_cycles >= 4 ~ "Received all",
+      month_visit == "September" & smc_cycles %in% 1:3 ~ "Received some",
+      month_visit == "September" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      #  October (expected 5 doses) ---
+      month_visit == "October" & smc_cycles >= 5 ~ "Received all",
+      month_visit == "October" & smc_cycles %in% 1:4 ~ "Received some",
+      month_visit == "October" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      TRUE ~ NA_character_
+    )
+  )
+
+```
+
+```{r}
+smc_summary <- surveillance_data %>%
+  group_by(month_visit, SMC_status) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  pivot_wider(
+    names_from = SMC_status,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  rename(
+    "Month" = month_visit,
+    "Missed all" = "Missed all",
+    "Received some" = "Received some",
+    "Received all" = "Received all"
+  )
+
+#smc_summary
+
+```
+
+```{r}
+smc_summary <- surveillance_data %>%
+  mutate(
+    month_visit = month(dateofvisit, label = TRUE, abbr = FALSE),
+    month_visit = if_else(month_visit == "June", "July", month_visit)   # <-- Combine June into July
+  ) %>%
+  filter(month(dateofvisit1) >= 6 & month(dateofvisit1) <= 10) %>% 
+  group_by(month_visit, SMC_status) %>%
+  summarise(n = n(), .groups = "drop_last") %>%
+  mutate(perc = 100 * n / sum(n)) %>%
+  ungroup() %>%
+  pivot_wider(
+    names_from = SMC_status,
+    values_from = c(n, perc),
+    values_fill = 0,
+    names_glue = "{.value}_{gsub(' ', '_', SMC_status)}"
+  ) %>%
+  mutate(dplyr::across(starts_with("perc_"), round, 1)) %>%
+  rowwise() %>%
+  mutate(
+    total = sum(dplyr::across(starts_with("n_")))
+  ) %>%
+  ungroup() %>%
+  transmute(
+    Month = factor(month_visit,
+                   levels = c("July", "August", "September", "October"),
+                   ordered = TRUE),
+    `Missed all` = paste0(n_Missed_all, " (", perc_Missed_all, "%)"),
+    `Received some` = paste0(n_Received_some, " (", perc_Received_some, "%)"),
+    `Received all` = paste0(n_Received_all, " (", perc_Received_all, "%)"),
+    `Total` = total
+  ) %>%
+  arrange(Month)
+```
+
+```{r }
+#data for plotting
+smc_plot_data <- surveillance_data %>%
+  mutate(
+    month_visit = month(dateofvisit, label = TRUE, abbr = FALSE),
+    month_visit = if_else(month_visit == "June", "July", month_visit)
+  ) %>%
+  filter(month(dateofvisit1) >= 6 & month(dateofvisit1) <= 10) %>%
+  group_by(month_visit, SMC_status) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  ungroup()
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# ---- PREPARE DATA ----
+smc_plot_long <- smc_plot_data %>%
+  mutate(
+    SMC_status = case_when(
+      SMC_status == "Missed all" ~ "Missed all",
+      SMC_status == "Received some" ~ "Received some",
+      SMC_status == "Received all" ~ "Received all",
+      TRUE ~ SMC_status
+    )
+  ) %>%
+  
+  # spread wide
+  pivot_wider(
+    names_from = SMC_status,
+    values_from = n,
+    values_fill = 0
+  ) %>%
+  
+  # month order
+  mutate(
+    Month = factor(
+      month_visit,
+      levels = c("July", "August", "September", "October"),
+      ordered = TRUE
+    )
+  ) %>%
+  
+  # return to long
+  pivot_longer(
+    cols = c(`Missed all`, `Received some`, `Received all`),
+    names_to = "SMC_status",
+    values_to = "count"
+  ) %>%
+  
+  # REAL stacking order here
+  mutate(
+    SMC_status = factor(
+      SMC_status,
+      levels = c("Missed all","Received some", "Received all" ),
+      ordered = TRUE
+    ))
+```
+
+```{r}
+# ---- PLOT ----
+plot_smc_month <- ggplot(smc_plot_long, aes(x = Month, y = count, fill = SMC_status)) +
+  geom_col(width = 0.7, color = "white") +
+  theme_bw()+
+  labs(x = "Month", y = "Number of Children", fill = "SMC Status", title = "") +
+  scale_y_continuous(limits = c(0,300), #Define the limit of the y axis
+                              breaks=seq(0,300,50),expand = c(0,0))+
+  scale_fill_manual(values = c("#f8766d","#00BA38","#619CFF"), labels=c("Missed all","Received some", "Received all"),name=NULL) +
+
+  theme_minimal(base_size = 16) +
+  theme(
+     axis.line = element_line(colour = "black"),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text = element_text(color = "black")
+  )
+
+# ---- SAVE HIGH RESOLUTION ----
+ggsave(
+  filename = "smc_coverage_by_month.png",
+  plot = plot_smc_month,
+  width = 9,
+  height = 6,
+  dpi = 600
+)
+plot_smc_month
+```
+
+
+
+## Pie chart
+```{r evail=FALSE}
+adherence_data <- read_excel("adherence_final_09022026.xlsx")
+```
+
+```{r eval=FALSE}
+#table(surveillance_data$receive_smc)
+###Generating visit month
+adherence_data <- adherence_data %>%
+  mutate(
+    #dateofvisit1 = ymd(dateofvisit),  # make sure it's a proper date
+    month_visit = month(dateofvisit, label = TRUE, abbr = FALSE),
+    SMC_cycle = case_when(
+      month(dateofvisit) == 6  ~ "Cycle 1",
+      month(dateofvisit) == 7  ~ "Cycle 2",
+      month(dateofvisit) == 8  ~ "Cycle 3",
+      month(dateofvisit) == 9  ~ "Cycle 4",
+      month(dateofvisit) == 10 ~ "Cycle 5",
+      TRUE ~ "Outside SMC period"
+    )
+  )
+```
+
+```{r}
+#to find out if all are within the smc cycle
+#surveillance_data %>%
+  #summarise(
+  #  total_records = n(),
+  #  missing_SMC = sum(is.na(SMC_cycle) | SMC_cycle == "Outside SMC period"),
+   # with_SMC = sum(!is.na(SMC_cycle) & SMC_cycle != "Outside SMC period")
+ # )
+#unique(adherence_data$SMC_cycle)
+#unique(adherence_data$month_visit)
+```
+
+```{r}
+#if there are missing smc cycle look them up
+#missing_SMC <- surveillance_data %>%
+#  filter(is.na(SMC_cycle) | SMC_cycle == "Outside SMC period") %>%
+ # select(facility_name, id_enter_type, id_code_enter, id_code_scan)
+
+#missing_SMC
+```
+
+```{r eval=FALSE}
+adherence_data <- adherence_data %>%
+  mutate(
+    SMC_status = case_when(
+      # June (expected 1 dose) ---
+      month_visit == "June" & smc_cycles >= 1 ~ "Received all",
+      month_visit == "June" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      # July (expected 2 doses) ---
+      month_visit == "July" & smc_cycles >= 2 ~ "Received all",
+      month_visit == "July" & smc_cycles == 1 ~ "Received some",
+      month_visit == "July" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      #  August (expected 3 doses) ---
+      month_visit == "August" & smc_cycles >= 3 ~ "Received all",
+      month_visit == "August" & smc_cycles %in% 1:2 ~ "Received some",
+      month_visit == "August" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      # September (expected 4 doses) ---
+      month_visit == "September" & smc_cycles >= 4 ~ "Received all",
+      month_visit == "September" & smc_cycles %in% 1:3 ~ "Received some",
+      month_visit == "September" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      #  October (expected 5 doses) ---
+      month_visit == "October" & smc_cycles >= 5 ~ "Received all",
+      month_visit == "October" & smc_cycles %in% 1:4 ~ "Received some",
+      month_visit == "October" & (is.na(smc_cycles) | smc_cycles == "") ~ "Missed all",
+
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+```{r}
+#unique(adherence_data$SMC_status)
+#n_a <- adherence_data %>% filter(is.na(SMC_status))
+```
+
+```{r}
+#mainform_cols <- c("dateofvisit","pid","receive_smc","date_lastcycle")
+#mainform_subset <- mainform_data %>% select(all_of(mainform_cols)) %>% filter(receive_smc==1)
+```
+
+```{r eval=FALSE}
+#adherence_data <- adherence_data %>% mutate(
+# date_lastcycle=if_else(pid=="KP-SEA-1006", as.Date("2025-07-21"),date_lastcycle)
+ # )
+
+```
+
+
+```{r}
+adherence_data <- adherence_data %>% mutate(
+  num_days= as.numeric(difftime(dateofvisit,date_lastcycle,units = "days"))
+  ) 
+
+```
+
+
+```{r eval=FALSE}
+write_xlsx(x=adherence_data, "df_adherence_data.xlsx")
+```
+
+
